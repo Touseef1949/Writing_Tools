@@ -1,9 +1,20 @@
 import streamlit as st
 import groq
 import time
+import dotenv
+import os
+
+dotenv.load_dotenv()
 
 # Initialize the Groq client
-client = groq.Client(api_key="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")
+api_key = os.getenv("GROQ_API_KEY")
+if not api_key:
+    st.error("GROQ_API_KEY is missing. Make sure it's set in your .env file.")
+client = groq.Client(api_key=api_key)
+
+# Initialize the Groq client
+print(f"GROQ_API_KEY: {api_key}")  # Debugging purpose
+
 
 def rephrase(instruction, user_message):
     if user_message:
