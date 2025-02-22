@@ -12,9 +12,6 @@ if not api_key:
     st.error("GROQ_API_KEY is missing. Make sure it's set in your .env file.")
 client = groq.Client(api_key=api_key)
 
-# Initialize the Groq client
-print(f"GROQ_API_KEY: {api_key}")  # Debugging purpose
-
 
 def rephrase(instruction, user_message):
     if user_message:
