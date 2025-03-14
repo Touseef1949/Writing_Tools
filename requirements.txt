@@ -3,4 +3,3 @@ groq
 dotenv
 os
 time
---upgrade pip
