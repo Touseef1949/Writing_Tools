@@ -20,7 +20,7 @@ def rephrase(instruction, user_message):
         progress_bar = st.progress(0)
         for i in range(3):
             response = client.chat.completions.create(
-                model="llama3-8b-8192",
+                model="llama-3.3-70b-versatile",
                 messages=[{"role": "user", "content": prompt}]
             )
             rephrases.append(response.choices[0].message.content)
@@ -56,8 +56,8 @@ with st.spinner('Processing...'):
             rephrases = rephrase('Rewrite this section to make it more concise. Remove any unnecessary words and redundant phrases, while keeping the original message intact.', user_input)
 
     with col5:
-        if st.button('Make Formal'):
-            rephrases = rephrase('Rewrite this sentence to make it sound more professional and formal. Use appropriate vocabulary and a respectful tone, while keeping the original message intact.', user_input)
+        if st.button('Grammar Check'):
+            rephrases = rephrase('Identify any grammatical errors, suggest corrections, and explain the reasoning behind the changes.  Maintain the original meaning of the sentence.', user_input)
 
 end_time = time.time()
 elapsed_time = end_time - start_time
