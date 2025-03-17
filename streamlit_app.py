@@ -56,7 +56,7 @@ with st.spinner('Processing...'):
             rephrases = rephrase('Rewrite this section to make it more concise. Remove any unnecessary words and redundant phrases, while keeping the original message intact.', user_input)
 
     with col5:
-        if st.button('Grammar Check'):
+        if st.button('Grammar'):
             rephrases = rephrase('Identify any grammatical errors, suggest corrections, and explain the reasoning behind the changes.  Maintain the original meaning of the sentence.', user_input)
 
 end_time = time.time()
