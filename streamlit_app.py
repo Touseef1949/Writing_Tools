@@ -4,6 +4,7 @@ import time
 import dotenv
 import os
 from PIL import Image
+import requests
 
 dotenv.load_dotenv()
 
@@ -43,16 +44,16 @@ def generate_response(instruction, user_message):
     return ""
 
 
-# Load images
-logo = Image.open("logo.png")  # Replace "logo.png" with your logo file
-background_image = Image.open("background.png")  # Replace "background.png" with your background image
+# Image URLs
+logo_url = "https://www.groq.com/wp-content/uploads/2024/04/groq-logo-dark.svg"  # Replace with your logo URL
+background_image_url = "https://images.unsplash.com/photo-1618032786529-69999a76999f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8Y29tcHV0ZXJ8ZW58MHx8MHx8fDA%3D&w=1000&q=80"  # Replace with your background image URL
 
 # CSS Styling
 st.markdown(
     """
     <style>
     body {
-        background-image: url('https://images.unsplash.com/photo-1618032786529-69999a76999f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8Y29tcHV0ZXJ8ZW58MHx8MHx8fDA%3D&w=1000&q=80'); /* Replace with your background image URL */
+        background-image: url('{background_image_url}'); /* Replace with your background image URL */
         background-size: cover;
         background-repeat: no-repeat;
         color: #fff;
@@ -82,7 +83,14 @@ st.markdown(
 
 # Sidebar for options
 with st.sidebar:
-    st.image(logo, width=150)
+    try:
+        response = requests.get(logo_url, stream=True)
+        response.raise_for_status()  # Raise an exception for bad status codes
+        logo_image = Image.open(response.raw)
+        st.image(logo_image, width=150)
+    except requests.exceptions.RequestException as e:
+        st.error(f"Error loading logo: {e}")
+
     st.header("Navigation")
     option = st.selectbox(
         "Choose a tool:",
