@@ -12,7 +12,6 @@ if not api_key:
     st.error("GROQ_API_KEY is missing. Make sure it's set in your .env file.")
 client = groq.Client(api_key=api_key)
 
-
 def rephrase(instruction, user_message):
     if user_message:
         rephrases = []
@@ -41,7 +40,6 @@ def generate_response(instruction, user_message):
             return response.choices[0].message.content
     return ""
 
-
 # Sidebar for options
 with st.sidebar:
     option = st.selectbox(
@@ -64,31 +62,77 @@ if option == "Writing Tools":
     with st.spinner('Processing...'):
         with col1:
             if st.button('Rephrase'):
-                rephrases = rephrase('Rewrite this text for better readability while maintaining its original meaning. Focus on improving sentence structure and clarity.', user_input)
+                rephrases = rephrase(
+                    'Rewrite this text for better readability while maintaining its original meaning. Focus on improving sentence structure and clarity.',
+                    user_input
+                )
 
         with col2:
             if st.button('Make Gen Z'):
-                rephrases = rephrase('Rewrite this text to make it more appealing and relatable to a younger, millennial or Gen Z audience. Use contemporary language, slang, and references that resonate with this demographic, while keeping the original message intact.', user_input)
+                rephrases = rephrase(
+                    'Rewrite this text to make it more appealing and relatable to a younger, millennial or Gen Z audience. Use contemporary language, slang, and references that resonate with this demographic, while keeping the original message intact.',
+                    user_input
+                )
 
         with col3:
             if st.button('Write Email'):
-                rephrases = rephrase('Create an email to make it sound more professional and formal. Ensure the tone is respectful and the language is polished, while keeping the original message intact.', user_input)
+                rephrases = rephrase(
+                    'Create an email to make it sound more professional and formal. Ensure the tone is respectful and the language is polished, while keeping the original message intact.',
+                    user_input
+                )
 
         with col4:
             if st.button('Make Concise'):
-                rephrases = rephrase('Rewrite this section to make it more concise. Remove any unnecessary words and redundant phrases, while keeping the original message intact.', user_input)
+                rephrases = rephrase(
+                    'Rewrite this section to make it more concise. Remove any unnecessary words and redundant phrases, while keeping the original message intact.',
+                    user_input
+                )
 
         with col5:
             if st.button('Grammar'):
-                rephrases = rephrase('Identify any grammatical errors, suggest corrections, and explain the reasoning behind the changes.  Maintain the original meaning of the sentence.', user_input)
+                # Prepare the prompt for the Grammar button.
+                grammar_prompt = (
+                    f'Check the following sentence for grammar errors and provide only the corrected sentence. '
+                    f'Also, include the detailed reasoning behind the corrections after a delimiter "Explanation:" '
+                    f'so that the reasoning can be hidden by default: "{user_input}"'
+                )
+                response = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[{"role": "user", "content": grammar_prompt}]
+                )
+                full_response = response.choices[0].message.content
+
+                # Split the response into the corrected sentence and the explanation.
+                if "Explanation:" in full_response:
+                    corrected_sentence, explanation = full_response.split("Explanation:", 1)
+                else:
+                    corrected_sentence = full_response
+                    explanation = "No detailed explanation provided."
+
+                # Display the corrected sentence.
+                st.write("**Corrected Sentence:**")
+                st.write(corrected_sentence.strip())
+
+                # Add a Copy-to-Clipboard button using an HTML snippet.
+                copy_button_html = f"""
+                <button style="padding: 4px 8px; font-size: 0.9em; cursor: pointer;"
+                    onclick="navigator.clipboard.writeText(`{corrected_sentence.strip()}`)">
+                    Copy to Clipboard
+                </button>
+                """
+                st.markdown(copy_button_html, unsafe_allow_html=True)
+
+                # Provide an expandable section to view the detailed explanation.
+                with st.expander("Show Explanation"):
+                    st.write(explanation.strip())
 
     end_time = time.time()
     elapsed_time = end_time - start_time
 
     if rephrases:
         st.write("Rephrased Texts:")
-        for i, rephrase in enumerate(rephrases, 1):
-            st.write(f"{i}. {rephrase}")
+        for i, rephrase_text in enumerate(rephrases, 1):
+            st.write(f"{i}. {rephrase_text}")
         st.write(f"Overall response time: {elapsed_time:.2f} seconds")
 
 elif option == "Chat with AI":
