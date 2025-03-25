@@ -1,187 +1,114 @@
-import wx
-from datetime import datetime
-import pyperclip
-import pickle
+import streamlit as st
+import groq
+import time
+import dotenv
 import os
 
-class TodoList(wx.Frame):
-    def __init__(self, parent):
-        super().__init__(parent, title="To-Do List", size=(500, 500))
+dotenv.load_dotenv()
 
-        self.task_file = "tasks.pkl"  # File to store tasks
-        self.load_tasks()  # Load tasks from file
+# Initialize the Groq client
+api_key = os.getenv("GROQ_API_KEY")
+if not api_key:
+    st.error("GROQ_API_KEY is missing. Make sure it's set in your .env file.")
+client = groq.Client(api_key=api_key)
 
-        self.panel = wx.Panel(self)
-        self.panel.SetBackgroundColour('#f0f5f9')
 
-        font = wx.Font(10, wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
+def rephrase(instruction, user_message):
+    if user_message:
+        rephrases = []
+        prompt = f'Check the following sentence for grammar and clarity: "{user_message}". {instruction}'
+        progress_bar = st.progress(0)
+        for i in range(3):
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            rephrases.append(response.choices[0].message.content)
+            progress_bar.progress((i + 1) / 3)
+        return rephrases
+    return []
 
-        self.task_label = wx.StaticText(self.panel, label="Task:")
-        self.task_label.SetFont(font)
-        self.task_input = wx.TextCtrl(self.panel)
+def generate_response(instruction, user_message):
+    if user_message:
+        prompt = f'{instruction} "{user_message}"'
+        progress_bar = st.progress(0)
+        for i in range(1):  # Reduced iterations for faster response
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            progress_bar.progress(1)
+            return response.choices[0].message.content
+    return ""
 
-        self.priority_label = wx.StaticText(self.panel, label="Priority:")
-        self.priority_label.SetFont(font)
-        self.priority_input = wx.Choice(self.panel, choices=["Low", "Medium", "High"])
 
-        self.date_label = wx.StaticText(self.panel, label="Due Date (YYYY-MM-DD):")
-        self.date_label.SetFont(font)
-        self.date_input = wx.TextCtrl(self.panel)
-        self.today_button = self.create_styled_button("Today's Date", "#007BFF")
-        self.today_button.Bind(wx.EVT_BUTTON, self.set_today)
+# Sidebar for options
+with st.sidebar:
+    option = st.selectbox(
+        "Choose an option:",
+        ("Writing Tools", "Chat with AI")
+    )
 
-        self.add_button = self.create_styled_button("Add Task", "#28a745")
-        self.add_button.Bind(wx.EVT_BUTTON, self.add_task)
+# Main content based on selected option
+if option == "Writing Tools":
+    st.title('Writing Tools')
 
-        self.update_button = self.create_styled_button("Update Task", "#ffc107")
-        self.update_button.Bind(wx.EVT_BUTTON, self.update_task)
+    user_input = st.text_area("Enter your text here:")
 
-        self.copy_button = self.create_styled_button("Copy Tasks", "#17a2b8")
-        self.copy_button.Bind(wx.EVT_BUTTON, self.copy_tasks)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
-        self.task_list = wx.ListCtrl(self.panel, style=wx.LC_REPORT | wx.BORDER_SUNKEN)
-        self.task_list.InsertColumn(0, 'Task', width=200)
-        self.task_list.InsertColumn(1, 'Priority', width=100)
-        self.task_list.InsertColumn(2, 'Due Date', width=150)
-        self.task_list.Bind(wx.EVT_LIST_ITEM_SELECTED, self.on_task_selected)
+    rephrases = []
 
-        self.delete_button = self.create_styled_button("Delete Task", "#dc3545")
-        self.delete_button.Bind(wx.EVT_BUTTON, self.delete_task)
+    start_time = time.time()
 
-        self.done_button = self.create_styled_button("Mark as Done", "#6c757d")
-        self.done_button.Bind(wx.EVT_BUTTON, self.mark_done)
+    with st.spinner('Processing...'):
+        with col1:
+            if st.button('Rephrase'):
+                rephrases = rephrase('Rewrite this text for better readability while maintaining its original meaning. Focus on improving sentence structure and clarity.', user_input)
 
-        self.layout()
-        self.populate_task_list()
+        with col2:
+            if st.button('Make Gen Z'):
+                rephrases = rephrase('Rewrite this text to make it more appealing and relatable to a younger, millennial or Gen Z audience. Use contemporary language, slang, and references that resonate with this demographic, while keeping the original message intact.', user_input)
 
-    def create_styled_button(self, label, color):
-        """Creates a styled button with a custom color."""
-        btn = wx.Button(self.panel, label=label)
-        btn.SetBackgroundColour(color)
-        btn.SetForegroundColour('#FFFFFF')  
-        btn.SetFont(wx.Font(10, wx.FONTFAMILY_SWISS, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD))
-        return btn
+        with col3:
+            if st.button('Write Email'):
+                rephrases = rephrase('Create an email to make it sound more professional and formal. Ensure the tone is respectful and the language is polished, while keeping the original message intact.', user_input)
 
-    def layout(self):
-        sizer = wx.BoxSizer(wx.VERTICAL)
+        with col4:
+            if st.button('Make Concise'):
+                rephrases = rephrase('Rewrite this section to make it more concise. Remove any unnecessary words and redundant phrases, while keeping the original message intact.', user_input)
 
-        input_sizer = wx.FlexGridSizer(3, 3, 5, 5)
-        input_sizer.AddMany([
-            (self.task_label), (self.task_input, 1, wx.EXPAND), (wx.StaticText(self.panel)),
-            (self.priority_label), (self.priority_input), (wx.StaticText(self.panel)),
-            (self.date_label), (self.date_input, 1, wx.EXPAND), (self.today_button)
-        ])
-        input_sizer.AddGrowableCol(1, 1)
+        with col5:
+            if st.button('Grammar'):
+                rephrases = rephrase('Identify any grammatical errors, suggest corrections, and explain the reasoning behind the changes.  Maintain the original meaning of the sentence.', user_input)
 
-        button_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        button_sizer.Add(self.add_button, 0, wx.ALL, 5)
-        button_sizer.Add(self.update_button, 0, wx.ALL, 5)
-        button_sizer.Add(self.copy_button, 0, wx.ALL, 5)
+    end_time = time.time()
+    elapsed_time = end_time - start_time
 
-        list_sizer = wx.BoxSizer(wx.VERTICAL)
-        list_sizer.Add(self.task_list, 1, wx.EXPAND | wx.ALL, 5)
+    if rephrases:
+        st.write("Rephrased Texts:")
+        for i, rephrase in enumerate(rephrases, 1):
+            st.write(f"{i}. {rephrase}")
+        st.write(f"Overall response time: {elapsed_time:.2f} seconds")
 
-        button_sizer2 = wx.BoxSizer(wx.HORIZONTAL)
-        button_sizer2.Add(self.delete_button, 0, wx.ALL, 5)
-        button_sizer2.Add(self.done_button, 0, wx.ALL, 5)
+elif option == "Chat with AI":
+    st.title('Chat with AI')
 
-        sizer.Add(input_sizer, 0, wx.EXPAND | wx.ALL, 5)
-        sizer.Add(button_sizer, 0, wx.ALIGN_RIGHT)
-        sizer.Add(list_sizer, 1, wx.EXPAND)
-        sizer.Add(button_sizer2, 0, wx.ALIGN_RIGHT)
+    user_input = st.text_area("Enter your text here:")
+    chat_instruction = st.text_input("Enter your instruction (e.g., 'Rewrite for clarity', 'Make it sound professional', 'Summarize this'):")
 
-        self.panel.SetSizer(sizer)
+    start_time = time.time()
 
-    def set_today(self, event):
-        """Sets today's date in the date input."""
-        self.date_input.SetValue(datetime.now().strftime('%Y-%m-%d'))
+    if st.button("Send"):
+        with st.spinner('Processing...'):
+            if chat_instruction:
+                response = generate_response(chat_instruction, user_input)
+                st.write("Response:")
+                st.write(response)
+            else:
+                st.warning("Please enter an instruction in the text box above.")
 
-    def add_task(self, event):
-        """Adds a new task and saves immediately."""
-        task = self.task_input.GetValue()
-        priority = self.priority_input.GetStringSelection()
-        date = self.date_input.GetValue()
-        if task and priority and date:
-            self.tasks.append({'task': task, 'priority': priority, 'date': date, 'done': False})
-            self.sort_tasks()
-            self.save_tasks()
-            self.populate_task_list()
-            self.task_input.SetValue("")
+    end_time = time.time()
+    elapsed_time = end_time - start_time
 
-    def update_task(self, event):
-        """Updates a task and saves immediately."""
-        selection = self.task_list.GetFirstSelected()
-        if selection != -1:
-            task = self.task_input.GetValue()
-            priority = self.priority_input.GetStringSelection()
-            date = self.date_input.GetValue()
-            if task and priority and date:
-                self.tasks[selection] = {'task': task, 'priority': priority, 'date': date, 'done': False}
-                self.sort_tasks()
-                self.save_tasks()
-                self.populate_task_list()
-
-    def on_task_selected(self, event):
-        """Populates input fields with selected task."""
-        index = event.GetIndex()
-        task = self.tasks[index]
-        self.task_input.SetValue(task['task'])
-        self.priority_input.SetStringSelection(task['priority'])
-        self.date_input.SetValue(task['date'])
-
-    def mark_done(self, event):
-        """Marks a task as completed and moves it to the bottom."""
-        selection = self.task_list.GetFirstSelected()
-        if selection != -1:
-            self.tasks[selection]['done'] = True
-            self.sort_tasks()
-            self.save_tasks()
-            self.populate_task_list()
-
-    def delete_task(self, event):
-        """Deletes a task and saves immediately."""
-        selection = self.task_list.GetFirstSelected()
-        if selection != -1:
-            del self.tasks[selection]
-            self.save_tasks()
-            self.populate_task_list()
-
-    def copy_tasks(self, event):
-        """Copies pending tasks to clipboard."""
-        tasks_str = '\n'.join([f'Task: {task["task"]}, Priority: {task["priority"]}' for task in self.tasks if not task['done']])
-        pyperclip.copy(tasks_str)
-
-    def sort_tasks(self):
-        """Sorts tasks by priority (High > Medium > Low) with completed tasks at the bottom."""
-        self.tasks.sort(key=lambda x: (x['done'], ["High", "Medium", "Low"].index(x['priority'])))
-
-    def populate_task_list(self):
-        """Refreshes the task list display."""
-        self.task_list.DeleteAllItems()
-        for index, task in enumerate(self.tasks):
-            self.task_list.Append((task['task'], task['priority'], task['date']))
-            if task['done']:
-                self.task_list.SetItemTextColour(index, wx.Colour(128, 128, 128))
-
-    def save_tasks(self):
-        """Saves tasks to a file."""
-        with open(self.task_file, 'wb') as f:
-            pickle.dump(self.tasks, f)
-
-    def load_tasks(self):
-        """Loads tasks from a file."""
-        if os.path.exists(self.task_file):
-            with open(self.task_file, 'rb') as f:
-                self.tasks = pickle.load(f)
-        else:
-            self.tasks = []
-
-class MyApp(wx.App):
-    def OnInit(self):
-        self.frame = TodoList(None)
-        self.frame.Show()
-        return True
-
-if __name__ == "__main__":
-    app = MyApp()
-    app.MainLoop()
+    st.write(f"Response time: {elapsed_time:.2f} seconds")
