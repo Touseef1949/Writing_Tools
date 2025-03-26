@@ -20,7 +20,7 @@ def rephrase(instruction, user_message):
         progress_bar = st.progress(0)
         for i in range(3):
             response = client.chat.completions.create(
-                model="mistral-saba-24b",
+                model="llama-3.3-70b-versatile",
                 messages=[{"role": "user", "content": prompt}]
             )
             rephrases.append(response.choices[0].message.content)
