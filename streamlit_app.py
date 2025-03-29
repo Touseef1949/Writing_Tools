@@ -34,7 +34,7 @@ def generate_response(instruction, user_message):
         progress_bar = st.progress(0)
         for i in range(1):  # Reduced iterations for faster response
             response = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
+                model="deepseek-r1-distill-llama-70b",
                 messages=[{"role": "user", "content": prompt}]
             )
             progress_bar.progress(1)
