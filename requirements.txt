@@ -1,3 +1,4 @@
 streamlit
 groq
 dotenv
+streamlit-copy-button
