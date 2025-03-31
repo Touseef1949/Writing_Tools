@@ -18,13 +18,13 @@ def rephrase(instruction, user_message):
         rephrases = []
         prompt = f'Check the following sentence for grammar and clarity: "{user_message}". {instruction}'
         progress_bar = st.progress(0)
-        for i in range(3):
+        for i in range(1):
             response = client.chat.completions.create(
                 model="qwen-qwq-32b",
                 messages=[{"role": "user", "content": prompt}]
             )
             rephrases.append(response.choices[0].message.content)
-            progress_bar.progress((i + 1) / 3)
+            progress_bar.progress((i + 1) / 1)
         return rephrases
     return []
 
