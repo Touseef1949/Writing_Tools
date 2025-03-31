@@ -83,7 +83,7 @@ def generate_response(instruction, user_message):
 
 # Sidebar for options
 with st.sidebar:
-    st.image("logo.png", width=50)  # Optional: Add a logo
+    # st.image("logo.png", width=50)  # Optional: Add a logo
     st.header("Navigation")
     option = st.selectbox(
         "Choose an option:",
