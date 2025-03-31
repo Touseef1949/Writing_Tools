@@ -22,14 +22,8 @@ except Exception as e:
 # --- Helper Function to Remove Tags ---
 def remove_think_tags(text):
     """Removes <think>...</think> blocks using regex."""
-    # This pattern looks for <think>, then matches any character (.*?)
-    # non-greedily until it finds </think>.
-    # re.DOTALL makes '.' match newlines as well, handling multi-line tags.
-    # We also add variations like <thought>
     pattern = r"<think>.*?</think>|<thought>.*?</thought>"
-    # Replace found patterns with an empty string
     cleaned_text = re.sub(pattern, "", text, flags=re.DOTALL | re.IGNORECASE)
-    # You might want to trim leading/trailing whitespace that could be left
     return cleaned_text.strip()
 # --- End Helper Function ---
 
@@ -37,8 +31,6 @@ def remove_think_tags(text):
 def rephrase(instruction, user_message):
     if user_message:
         rephrases = []
-        # Consider adding instruction to model not to use tags (less reliable)
-        # instruction += "\n\nImportant: Do not include any reasoning or thought process within <think> or similar tags in your final output."
         prompt = f'Check the following sentence for grammar and clarity: "{user_message}". {instruction}'
         progress_bar = st.progress(0)
         try:
@@ -48,9 +40,7 @@ def rephrase(instruction, user_message):
                     messages=[{"role": "user", "content": prompt}]
                 )
                 raw_content = response.choices[0].message.content
-                # --- Clean the response ---
                 cleaned_content = remove_think_tags(raw_content)
-                # --- End Cleaning ---
                 rephrases.append(cleaned_content)
                 progress_bar.progress((i + 1) / 1)
             return rephrases
@@ -58,13 +48,16 @@ def rephrase(instruction, user_message):
             st.error(f"Error during rephrasing API call: {e}")
             return [] # Return empty list on error
         finally:
-            progress_bar.empty() # Clear the progress bar
+            # Ensure progress bar is cleared or set to complete
+            # Using empty() might be better if you want it gone
+            progress_bar.progress(1.0) # Show completion
+            time.sleep(0.1) # Brief pause
+            progress_bar.empty() # Remove the progress bar
+
     return []
 
 def generate_response(instruction, user_message):
     if user_message:
-        # Consider adding instruction to model not to use tags (less reliable)
-        # instruction += "\n\nImportant: Do not include any reasoning or thought process within <think> or similar tags in your final output."
         prompt = f'{instruction} "{user_message}"'
         progress_bar = st.progress(0)
         try:
@@ -74,61 +67,80 @@ def generate_response(instruction, user_message):
                     messages=[{"role": "user", "content": prompt}]
                 )
                 raw_content = response.choices[0].message.content
-                # --- Clean the response ---
                 cleaned_content = remove_think_tags(raw_content)
-                # --- End Cleaning ---
                 progress_bar.progress(1)
                 return cleaned_content
         except Exception as e:
             st.error(f"Error during generation API call: {e}")
             return "" # Return empty string on error
         finally:
-            progress_bar.empty() # Clear the progress bar
+             # Ensure progress bar is cleared or set to complete
+            progress_bar.progress(1.0) # Show completion
+            time.sleep(0.1) # Brief pause
+            progress_bar.empty() # Remove the progress bar
     return ""
 
 
 # Sidebar for options
 with st.sidebar:
+    st.image("logo.png", width=50)  # Optional: Add a logo
+    st.header("Navigation")
     option = st.selectbox(
         "Choose an option:",
-        ("Writing Tools", "Chat with AI")
+        ("Writing Tools", "Chat with AI"),
+        label_visibility="collapsed" # Hide the label if the header is enough
     )
+    st.markdown("---")
+    st.caption("Powered by Groq & Streamlit")
+
 
 # Main content based on selected option
 if option == "Writing Tools":
-    st.title('Writing Tools')
+    st.title('✍️ Writing Tools')
+    st.markdown("Enhance your text with various writing assistance tools.")
 
-    user_input = st.text_area("Enter your text here:", height=150) # Adjusted height
+    user_input = st.text_area("Enter your text here:", height=150, placeholder="Paste or type your text...")
 
     col1, col2, col3, col4, col5 = st.columns(5)
 
     # Initialize rephrases outside the button checks
     rephrases_output = []
     processed = False # Flag to check if any button was pressed
+    action_taken = None # Keep track of which button was pressed
 
     # Store button results
-    rephrase_clicked = col1.button('Rephrase')
-    genz_clicked = col2.button('Make Gen Z')
-    email_clicked = col3.button('Write Email')
-    concise_clicked = col4.button('Make Concise')
-    grammar_clicked = col5.button('Grammar')
+    rephrase_clicked = col1.button('✨ Rephrase', help="Improve readability and clarity.")
+    genz_clicked = col2.button('😎 Make Gen Z', help="Adapt text for a younger audience.")
+    email_clicked = col3.button('👔 Write Email', help="Formalize text into a professional email.")
+    concise_clicked = col4.button('✂️ Make Concise', help="Shorten text while keeping the core message.")
+    grammar_clicked = col5.button('🧐 Grammar', help="Check and correct grammar.")
 
     start_time = time.time() # Start timer before potential processing
 
+    # Determine which button was clicked
+    if rephrase_clicked: action_taken = "Rephrase"
+    elif genz_clicked: action_taken = "Make Gen Z"
+    elif email_clicked: action_taken = "Write Email"
+    elif concise_clicked: action_taken = "Make Concise"
+    elif grammar_clicked: action_taken = "Grammar"
+
     # Process only if input exists and a button was clicked
-    if user_input and (rephrase_clicked or genz_clicked or email_clicked or concise_clicked or grammar_clicked):
+    if user_input and action_taken:
         processed = True
-        with st.spinner('Processing...'):
-            if rephrase_clicked:
-                rephrases_output = rephrase('Rewrite this text for better readability while maintaining its original meaning. Focus on improving sentence structure and clarity.', user_input)
-            elif genz_clicked:
-                rephrases_output = rephrase('Rewrite this text to make it more appealing and relatable to a younger, millennial or Gen Z audience. Use contemporary language, slang, and references that resonate with this demographic, while keeping the original message intact.', user_input)
-            elif email_clicked:
-                rephrases_output = rephrase('Create an email to make it sound more professional and formal. Ensure the tone is respectful and the language is polished, while keeping the original message intact.', user_input)
-            elif concise_clicked:
-                rephrases_output = rephrase('Rewrite this section to make it more concise. Remove any unnecessary words and redundant phrases, while keeping the original message intact.', user_input)
-            elif grammar_clicked:
-                rephrases_output = rephrase('Identify any grammatical errors, suggest corrections, and explain the reasoning behind the changes.  Maintain the original meaning of the sentence.', user_input)
+        instruction = ""
+        if action_taken == "Rephrase":
+            instruction = 'Rewrite this text for better readability while maintaining its original meaning. Focus on improving sentence structure and clarity.'
+        elif action_taken == "Make Gen Z":
+            instruction = 'Rewrite this text to make it more appealing and relatable to a younger, millennial or Gen Z audience. Use contemporary language, slang, and references that resonate with this demographic, while keeping the original message intact.'
+        elif action_taken == "Write Email":
+            instruction = 'Create an email to make it sound more professional and formal. Ensure the tone is respectful and the language is polished, while keeping the original message intact.'
+        elif action_taken == "Make Concise":
+            instruction = 'Rewrite this section to make it more concise. Remove any unnecessary words and redundant phrases, while keeping the original message intact.'
+        elif action_taken == "Grammar":
+            instruction = 'Identify any grammatical errors, suggest corrections, and explain the reasoning behind the changes. Maintain the original meaning of the sentence.'
+
+        with st.spinner(f'Processing: {action_taken}...'):
+            rephrases_output = rephrase(instruction, user_input)
 
     end_time = time.time() # End timer after potential processing
     elapsed_time = end_time - start_time
@@ -137,34 +149,40 @@ if option == "Writing Tools":
     if processed:
         if rephrases_output:
             st.write("---") # Separator
-            st.subheader("Results:")
-            # Display results more clearly
+            st.subheader(f"Result ({action_taken}):") # Show which action produced the result
+            # --- CHANGE HERE: Use st.write instead of st.text_area ---
             for i, text in enumerate(rephrases_output, 1):
-                 st.text_area(f"Result {i}", text, height=100, key=f"rephrase_{i}") # Use text_area for consistency
+                 # Using Markdown for potential formatting and a divider
+                 st.markdown(f"**Suggestion {i}:**")
+                 st.write(text)
+                 if len(rephrases_output) > 1 and i < len(rephrases_output):
+                     st.markdown("---") # Divider between multiple suggestions if any
+            # --- End Change ---
             st.info(f"Processing time: {elapsed_time:.2f} seconds")
         elif user_input: # Check if input was provided but processing failed or returned empty
              st.warning("Processing finished, but no output was generated. Please check for errors above or try again.")
-        # else: # No user input case is handled implicitly by not showing results
+        # else: # No user input case is handled implicitly
 
 elif option == "Chat with AI":
-    st.title('Chat with AI')
+    st.title('💬 Chat with AI')
+    st.markdown("Interact with the AI using custom instructions.")
 
-    user_input = st.text_area("Enter your text here:", height=150)
-    chat_instruction = st.text_input("Enter your instruction (e.g., 'Rewrite for clarity', 'Make it sound professional', 'Summarize this'):")
+    user_input = st.text_area("Enter your text here:", height=150, placeholder="Provide the text you want the AI to work with...")
+    chat_instruction = st.text_input("Enter your instruction:", placeholder="e.g., 'Rewrite for clarity', 'Make it sound professional', 'Summarize this'")
 
     response_output = None
     processed = False
 
-    if st.button("Send"):
+    if st.button("🚀 Send", help="Send your text and instruction to the AI"):
         processed = True
         start_time = time.time() # Start timer when button is clicked
         if user_input and chat_instruction:
-            with st.spinner('Processing...'):
+            with st.spinner('Communicating with AI...'):
                 response_output = generate_response(chat_instruction, user_input)
         elif not user_input:
-             st.warning("Please enter some text to process.")
+             st.warning("⚠️ Please enter some text to process.")
         else: # No instruction
-            st.warning("Please enter an instruction in the text box above.")
+            st.warning("⚠️ Please enter an instruction in the text box above.")
         end_time = time.time() # End timer after processing
         elapsed_time = end_time - start_time
 
@@ -172,8 +190,9 @@ elif option == "Chat with AI":
     if processed:
         if response_output:
             st.write("---") # Separator
-            st.subheader("Response:")
-            st.write("AI Response", response_output)
-            # st.text_area("AI Response", response_output, height=200) # Display in a text area
-            st.info(f"Processing time: {elapsed_time:.2f} seconds")
+            st.subheader("🤖 AI Response:")
+            # --- CHANGE HERE: Use st.write instead of st.text_area ---
+            st.write(response_output)
+            # --- End Change ---
+            st.info(f"Response time: {elapsed_time:.2f} seconds")
         # Warnings for missing input are handled above
