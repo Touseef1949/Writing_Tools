@@ -173,6 +173,7 @@ elif option == "Chat with AI":
         if response_output:
             st.write("---") # Separator
             st.subheader("Response:")
-            st.text_area("AI Response", response_output, height=200) # Display in a text area
+            st.write("AI Response", response_output)
+            # st.text_area("AI Response", response_output, height=200) # Display in a text area
             st.info(f"Processing time: {elapsed_time:.2f} seconds")
         # Warnings for missing input are handled above
